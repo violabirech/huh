@@ -1,3 +1,5 @@
+from utils import get_historical_dns
+# some logic
 import streamlit as st
 import pandas as pd
 import numpy as np
