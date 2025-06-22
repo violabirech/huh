@@ -4,7 +4,7 @@ import plotly.express as px
 from streamlit_autorefresh import st_autorefresh
 from tabs.utils import load_predictions_from_sqlitecloud  # Assumes this function supports a `type` param
 
-def render(time_range, time_range_query_map):
+def render(time_range, time_range_query_map, traffic_type):
     st_autorefresh(interval=30000, key="overview_refresh")
 
     st.title("📈 Unified Anomaly Detection Overview")
