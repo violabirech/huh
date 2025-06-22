@@ -1,3 +1,5 @@
+from utils import log_to_sqlitecloud
+# some logic
 import streamlit as st
 import pandas as pd
 import requests
