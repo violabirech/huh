@@ -15,7 +15,10 @@ DISCORD_WEBHOOK = st.secrets["DISCORD_WEBHOOK"]
 INFLUXDB_URL = st.secrets["INFLUXDB_URL"]
 INFLUXDB_TOKEN = st.secrets["INFLUXDB_TOKEN"]
 INFLUXDB_ORG = st.secrets["INFLUXDB_ORG"]
-INFLUXDB_BUCKET = st.secrets["INFLUXDB_BUCKET"]
+INFLUXDB_BUCKETS = {
+    "DNS": st.secrets["INFLUXDB_BUCKET_DNS"],
+    "DoS": st.secrets["INFLUXDB_BUCKET_DOS"]
+}
 
 # --- Sidebar Controls ---
 st.sidebar.title("⚙️ Settings")
@@ -31,16 +34,16 @@ highlight_color = st.sidebar.selectbox("Highlight Color", ["red", "orange", "yel
 thresh = st.sidebar.slider("Anomaly Threshold", 0.01, 1.0, 0.1, 0.01)
 alerts_enabled = st.sidebar.checkbox("Enable Discord Alerts", value=True)
 
-# --- State Init ---
+# --- Session Init ---
 if "predictions" not in st.session_state:
     st.session_state.predictions = []
 
-# --- InfluxDB Queries ---
-def query_influx(measurement, start="-1h", limit=500):
+# --- InfluxDB Query ---
+def query_influx(bucket, measurement, start="-1h", limit=500):
     try:
         with InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG) as client:
             query = f'''
-            from(bucket: "{INFLUXDB_BUCKET}")
+            from(bucket: "{bucket}")
               |> range(start: {start})
               |> filter(fn: (r) => r._measurement == "{measurement}")
               |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
@@ -73,9 +76,9 @@ def send_discord_alert(entry):
     try:
         requests.post(DISCORD_WEBHOOK, json=msg, timeout=5)
     except:
-        st.warning("❌ Failed to send Discord alert.")
+        st.warning("❌ Discord alert failed.")
 
-# --- Prediction Logic ---
+# --- Anomaly Detection Logic ---
 def detect_anomalies(df, traffic_type):
     df["reconstruction_error"] = np.random.rand(len(df))
     if traffic_type == "DNS":
@@ -87,13 +90,14 @@ def detect_anomalies(df, traffic_type):
     df["type"] = traffic_type
     return df
 
-# --- Layout ---
+# --- Tab Layout ---
 tabs = st.tabs(["📊 Overview", "📡 Live Stream", "📝 Manual Entry", "📈 Metrics", "🕘 Historical"])
 
 # --- Tab 1: Overview ---
 with tabs[0]:
     st.title(f"{traffic_type} Overview")
-    df = query_influx(measurement=traffic_type.lower(), start=time_range_map[time_range])
+    bucket = INFLUXDB_BUCKETS[traffic_type]
+    df = query_influx(bucket=bucket, measurement=traffic_type.lower(), start=time_range_map[time_range])
     if not df.empty:
         df = detect_anomalies(df, traffic_type)
         st.session_state.predictions.extend(df.to_dict("records"))
@@ -115,14 +119,15 @@ with tabs[0]:
 # --- Tab 2: Live Stream ---
 with tabs[1]:
     st_autorefresh(interval=10000, key="live")
-    new_df = query_influx(measurement=traffic_type.lower(), start="-10s", limit=10)
+    bucket = INFLUXDB_BUCKETS[traffic_type]
+    new_df = query_influx(bucket=bucket, measurement=traffic_type.lower(), start="-10s", limit=10)
     if not new_df.empty:
         new_df = detect_anomalies(new_df, traffic_type)
         for row in new_df.to_dict("records"):
             st.session_state.predictions.append(row)
             if row["anomaly"] == 1 and alerts_enabled:
                 send_discord_alert(row)
-        st.success(f"Fetched {len(new_df)} new entries.")
+        st.success(f"{len(new_df)} new entries added.")
 
 # --- Tab 3: Manual Entry ---
 with tabs[2]:
@@ -162,7 +167,8 @@ with tabs[3]:
 # --- Tab 5: Historical ---
 with tabs[4]:
     st.header("Historical Data")
-    df = query_influx(measurement=traffic_type.lower(), start=time_range_map[time_range])
+    bucket = INFLUXDB_BUCKETS[traffic_type]
+    df = query_influx(bucket=bucket, measurement=traffic_type.lower(), start=time_range_map[time_range])
     if not df.empty:
         df = detect_anomalies(df, traffic_type)
         df["timestamp"] = pd.to_datetime(df["timestamp"])
