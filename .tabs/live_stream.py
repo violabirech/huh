@@ -11,7 +11,7 @@ from tabs.utils import (
     API_URL_DOS
 )
 
-def render(thresh, highlight_color, alerts_enabled):
+def render(thresh, highlight_color, alerts_enabled, traffic_type):
     st_autorefresh(interval=10000, key="live_refresh")
     st.header("📡 Live Stream Anomaly Detection")
 
