@@ -1,3 +1,5 @@
+from utils import get_dns_data, send_discord_alert
+# some logic
 import streamlit as st
 import pandas as pd
 import requests
