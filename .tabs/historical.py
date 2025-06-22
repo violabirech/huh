@@ -5,7 +5,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from tabs.utils import get_historical_dns, get_historical_dos  # Ensure these are available
 
-def render(thresh, highlight_color):
+def render(thresh, highlight_color, traffic_type):
     st.header("📊 Historical Anomaly Data Viewer")
 
     data_choice = st.radio("Select Data Type:", ["DNS", "DoS"], horizontal=True)
