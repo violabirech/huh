@@ -1,79 +1,56 @@
+# --- main app.py ---
+import streamlit as st
+import pandas as pd
+from tabs import overview
+from tabs import live_stream
+from tabs import manual_entry
+from tabs import metrics
+from tabs import historical
 
-import gradio as gr
-import joblib
-import numpy as np
-import time
+st.set_page_config(page_title="Anomaly Detection Dashboard", layout="wide")
 
-# Load trained models
-dns_model = joblib.load("dns_model.joblib")
-dos_model = joblib.load("dos_model.joblib")
+# --- Sidebar Global Settings ---
+st.sidebar.header("🔧 Dashboard Controls")
 
-# DNS prediction function with latency
-def predict_dns(dns_rate, inter_arrival_time):
-    features = np.array([[dns_rate, inter_arrival_time]])
-    start = time.time()
-    anomaly = int(dns_model.predict(features)[0])
-    try:
-        score = float(dns_model.decision_function(features)[0])
-    except:
-        score = 0.0
-    latency = time.time() - start
-    return {
-        "type": "DNS",
-        "anomaly": anomaly,
-        "score": round(score, 4),
-        "dns_rate": dns_rate,
-        "inter_arrival_time": inter_arrival_time,
-        "latency_sec": round(latency, 4),
-        "model_version": "v1.0"
-    }
+# 🌐 Traffic Type Toggle
+traffic_type = st.sidebar.radio("Select Data Type", ["DNS", "DoS"], horizontal=True)
 
-# DoS prediction function with latency
-def predict_dos(inter_arrival_time, packet_length):
-    features = np.array([[inter_arrival_time, packet_length]])
-    start = time.time()
-    anomaly = int(dos_model.predict(features)[0])
-    try:
-        score = float(dos_model.decision_function(features)[0])
-    except:
-        score = 0.0
-    latency = time.time() - start
-    return {
-        "type": "DoS",
-        "anomaly": anomaly,
-        "score": round(score, 4),
-        "inter_arrival_time": inter_arrival_time,
-        "packet_length": packet_length,
-        "latency_sec": round(latency, 4),
-        "model_version": "v1.0"
-    }
+# ⏱ Time Range Options
+time_range_query_map = {
+    "Last 30 min": "-30m",
+    "Last 1 hour": "-1h",
+    "Last 24 hours": "-24h",
+    "Last 7 days": "-7d",
+    "Last 14 days": "-14d",
+    "Last 30 days": "-30d"
+}
+time_range = st.sidebar.selectbox("Time Range", list(time_range_query_map.keys()), index=2)
 
-# DNS Tab
-dns_tab = gr.Interface(
-    fn=predict_dns,
-    inputs=[
-        gr.Number(label="DNS Rate"),
-        gr.Number(label="Inter-Arrival Time")
-    ],
-    outputs="json",
-    title="DNS Anomaly Detection"
-)
+# ⚠️ Anomaly Settings
+thresh = st.sidebar.slider("Anomaly Threshold", 0.01, 1.0, 0.1, 0.01)
+highlight_color = st.sidebar.selectbox("Highlight Color", ["Red", "Orange", "Yellow", "Green", "Blue"], index=3)
+alerts_enabled = st.sidebar.checkbox("Enable Discord Alerts", value=True)
 
-# DoS Tab
-dos_tab = gr.Interface(
-    fn=predict_dos,
-    inputs=[
-        gr.Number(label="Inter-Arrival Time"),
-        gr.Number(label="Packet Length")
-    ],
-    outputs="json",
-    title="DoS Anomaly Detection"
-)
+# --- State Initialization ---
+if "predictions" not in st.session_state:
+    st.session_state.predictions = []
+if "attacks" not in st.session_state:
+    st.session_state.attacks = []
 
-# Combine both into tabs
-demo = gr.TabbedInterface(
-    interface_list=[dns_tab, dos_tab],
-    tab_names=["DNS Detection", "DoS Detection"]
-)
+# --- Tabs Navigation ---
+tabs = st.tabs(["Overview", "Live Stream", "Manual Entry", "Metrics", "Historical Data"])
 
-demo.launch()
+with tabs[0]:
+    overview.render(time_range, time_range_query_map, traffic_type)
+
+with tabs[1]:
+    live_stream.render(thresh, highlight_color, alerts_enabled, traffic_type)
+
+with tabs[2]:
+    manual_entry.render(traffic_type)
+
+with tabs[3]:
+    metrics.render(thresh, traffic_type)
+
+with tabs[4]:
+    historical.render(thresh, highlight_color, traffic_type)
