@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.figure_factory as ff
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-def render(thresh):
+def render(thresh, traffic_type):
     st.header("📊 Model Performance Metrics")
 
     # Ensure there's prediction history
