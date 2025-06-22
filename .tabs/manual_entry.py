@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 from tabs.utils import API_URL_DNS, API_URL_DOS  # Define both endpoints or use a dynamic switch
 
-def render():
+def render(traffic_type):
     st.header("Manual Anomaly Prediction")
 
     data_type = st.selectbox("Select Data Type", ["DNS", "DoS"], index=0)
