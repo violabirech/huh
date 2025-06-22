@@ -1,3 +1,5 @@
+from utils import load_predictions_from_sqlitecloud
+# some logic
 import streamlit as st
 import pandas as pd
 import plotly.express as px
